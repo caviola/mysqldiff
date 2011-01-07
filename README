@@ -1,0 +1,6 @@
+
+First of all: THIS IS AN ALPHA VERSION. DO NOT USE ON PRODUCTION!
+
+mysqldiff is a PHP script that compares the schema of two MySQL databases 
+and produces a sequence of MySQL statements to "alter" the second schema 
+to match the first one.

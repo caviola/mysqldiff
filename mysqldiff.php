@@ -190,7 +190,7 @@ function alter_table_modify_column($column1, $column2, $after_column, $table, $d
         $modify['type'] = " $column1->COLUMN_TYPE";
         
     if ($column1->COLLATION_NAME != $column2->COLLATION_NAME) 
-        $modify['collation'] = " COLLATION $column1->COLLATION_NAME";
+        $modify['collation'] = " COLLATE $column1->COLLATION_NAME";
     
     if ($column1->IS_NULLABLE != $column2->IS_NULLABLE)
         $modify['null'] = strcasecmp($column1->IS_NULLABLE, 'NO') == 0 ? ' NOT NULL' : ' NULL';

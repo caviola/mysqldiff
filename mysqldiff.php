@@ -19,8 +19,29 @@
  * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  * 
+ * https://github.com/caviola/mysqldiff
  */
- 
+
+function drop_schema_db( $db ){
+	if( !$db->schema ) return;
+	mysql_query("drop database {$db->database}", $db->link);
+}
+
+function create_schema_db( $db ){
+	if( !$db->schema ) return;
+	if( !mysql_query("create database {$db->database}", $db->link ) ) error( 'Error of create database ' . mysql_error() );
+}
+
+function load_schema_db( &$db ){
+	if( !$db->schema ) return;
+	$sql = explode(";",file_get_contents($db->schema ));
+	foreach( $sql as $q ){
+		if( !trim($q) ) continue;
+		if( preg_match('/^\s*\/\*.*\*\/\s*$/', $q ) ) continue;
+		if( preg_match('/^\s*drop /i', $q ) ) continue;
+    	if (!mysql_query($q, $db->link)) error( "Error in load schema db '$q'" . mysql_error() );
+	}
+}
 function populate_schemata_info(&$db) {
     if (!($result = mysql_query("select * from information_schema.schemata where schema_name='$db->database'", $db->link)))
         return FALSE;
@@ -386,7 +407,7 @@ function alter_table_alter_indexes($idx1, $idx2) {
 function process_database($db1, $db2) {
     global $options;
     
-    $sql = "USE `$db2->database`;\n";
+	if( !$db2->schema ) $sql = "USE `$db2->database`;\n";
     
     if ($db1->charset != $db2->charset) 
         $sql .= "ALTER DATABASE `$db2->database` CHARACTER SET=$db1->charset;\n";
@@ -437,11 +458,15 @@ Usage:
   php mysqldiff.php <options>
 
 Options:
+  --schema-file1 <schema-file>  Filename of the file which contain the db schema in sql
+                                Program will create a temp database and load schema
   --database1 <database-name>   Name of source db.
   --host1 <hostname>            Server hosting source db.
   --user1 <username>            Username for connectiong to source db.
   --pwd1 <pwd>                  Password for connectiong to source db.
   
+  --schema-file2 <schema-file>  Filename of the file which contain the db schema in sql
+                                Program will create a temp database and load schema
   --database2 <database-name>   Name of destination db.
   --host2 <hostname>            Server hosting destination db.
   --user2 <username>            Username for connectiong to destination db.
@@ -473,7 +498,7 @@ you can specify them using:
   --user <username>             Username for connectiong to both dbs.
   --pwd <pwd>                   Password for connectiong to both dbs.
   
-The default hostname is "localhhost".
+The default hostname is "localhost".
 Both passwords are empty by default.
 
 MSG;
@@ -507,6 +532,7 @@ $options = (object)array(
     'ofh' => STDOUT, // output file handle
 );
 
+date_default_timezone_set('Europe/Zurich');
 $db1 = &$options->db1;
 $db2 = &$options->db2;
 
@@ -516,6 +542,9 @@ if ($argc == 1)
 // Parse command line arguments.
 for ($i = 1; $i < $argc; $i++) {
     switch ($argv[$i]) {
+        case '--schema-file1': 
+            $db1->schema = $argv[++$i];
+            break;
         case '--host1': 
             $db1->host = $argv[++$i];
             break;
@@ -527,6 +556,9 @@ for ($i = 1; $i < $argc; $i++) {
             break;
         case '--pwd1':
             $db1->pwd = $argv[++$i];
+            break;
+        case '--schema-file2': 
+            $db2->schema = $argv[++$i];
             break;
         case '--host2':
             $db2->host = $argv[++$i];
@@ -583,13 +615,23 @@ $options->output_dir = 'c:/temp/perico';
 $options->overwrite = TRUE;
 */
 
-if (!$db1->database)
-    error("source database must be specified with --database1 or --database");
+if (!$db1->database && !$db1->schema )
+    error("source database or schema file must be specified with --schema-file1, --database1 or --database");
 
-if (!$db2->database)
-    error("destination database must be specified with --database2 or --database");
+if( $db1->schema ){
+	if( !file_exists($db1->schema) ) error( "schema file 1 does not exist" );
+	$db1->database = "tmp_schema_".uniqid();
+}
+
+if (!$db2->database && !$db2->schema )
+    error("destination database or schema file must be specified with --schema-file2, --database2 or --database");
+
+if( $db2->schema ){
+	if( !file_exists($db1->schema) ) error( "schema file 2 does not exist" );
+	$db2->database = "tmp_schema_".uniqid();
+}
     
-if ($db1->host == $db2->host && $db1->database == $db2->database)
+if ($db1->host == $db2->host && $db1->database == $db2->database && !$db1->schema && !$db2->schema )
     error("databases names must be different if they reside on the same host");
 
 if ($options->output_file) {
@@ -601,10 +643,15 @@ if ($options->output_file) {
 }
 
 $db1->link = @mysql_connect($db1->host, $db1->user, $db1->pwd, TRUE) or error(mysql_error());
+create_schema_db($db1);
 mysql_selectdb($db1->database, $db1->link) or error(mysql_error($db1->link));
 
 $db2->link = @mysql_connect($db2->host, $db2->user, $db2->pwd, TRUE) or error(mysql_error());
+create_schema_db($db2);
 mysql_selectdb($db2->database, $db2->link)  or error(mysql_error($db2->link));
+
+load_schema_db( $db1 );
+load_schema_db( $db2 );
 
 populate_schemata_info($db1);
 populate_schemata_info($db2);
@@ -612,4 +659,6 @@ populate_schemata_info($db2);
 process_database($db1, $db2);
 process_tables($db1, $db2);
 
+drop_schema_db($db1);
+drop_schema_db($db2);
 ?>

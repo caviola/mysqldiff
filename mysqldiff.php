@@ -522,11 +522,13 @@ $options = (object)array(
     'new_table_data' => FALSE,
     'db1' => (object)array(
         'host' => 'localhost', 
-        'pwd' => NULL
+        'pwd' => NULL,
+        'schema' => NULL
     ),
     'db2' => (object)array(
         'host' => 'localhost', 
-        'pwd' => NULL
+        'pwd' => NULL,
+        'schema' => NULL
     ),
     'output_file' => NULL,
     'ofh' => STDOUT, // output file handle

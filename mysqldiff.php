@@ -247,13 +247,13 @@ function alter_table_modify_column($column1, $column2, $after_column, $table, $d
     }
 }
 
-function alter_table_drop_columns($columns1, $columns2) {
+function alter_table_drop_columns($columns1, $columns2, $table) {
     global $options;
     
     $sql = '';
     $columns = array_diff_key($columns2, $columns1);
     foreach ($columns as $c) {
-        $sql .= "ALTER TABLE `$t` DROP COLUMN `$c->COLUMN_NAME`;\n";
+        $sql .= "ALTER TABLE `$table` DROP COLUMN `$c->COLUMN_NAME`;\n";
     }
     
     fputs($options->ofh, $sql);
@@ -281,7 +281,7 @@ function alter_tables_columns($db1, $db2) {
         }
 
         if ($options->drop_columns)
-            alter_table_drop_columns($columns1, $columns2);
+            alter_table_drop_columns($columns1, $columns2, $t);
     }
 }
 
